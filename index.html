@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-search.css">
+        <link rel="stylesheet" href="css/leaflet-control-geocoder.Geocoder.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title></title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/multi-style-layer.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet-control-geocoder.Geocoder.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="js/leaflet-search.js"></script>
+        <script src="data/AfricaCntry_1.js"></script>
+        <script src="data/africa_nileBasin_2.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#ffff00',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#ffff00',
+                fillOpacity: 1
+              });
+            }
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        })
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+            if (bounds_group.getLayers().length) {
+                map.fitBounds(bounds_group.getBounds());
+            }
+        }
+        map.createPane('pane_OSMStandard_0');
+        map.getPane('pane_OSMStandard_0').style.zIndex = 400;
+        var layer_OSMStandard_0 = L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_OSMStandard_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, CC-BY-SA</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_OSMStandard_0;
+        map.addLayer(layer_OSMStandard_0);
+        function pop_AfricaCntry_1(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['featurecla'] !== null ? autolinker.link(feature.properties['featurecla'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['scalerank'] !== null ? autolinker.link(feature.properties['scalerank'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LABELRANK'] !== null ? autolinker.link(feature.properties['LABELRANK'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SOVEREIGNT'] !== null ? autolinker.link(feature.properties['SOVEREIGNT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SOV_A3'] !== null ? autolinker.link(feature.properties['SOV_A3'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_DIF'] !== null ? autolinker.link(feature.properties['ADM0_DIF'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LEVEL'] !== null ? autolinker.link(feature.properties['LEVEL'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TYPE'] !== null ? autolinker.link(feature.properties['TYPE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TLC'] !== null ? autolinker.link(feature.properties['TLC'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADMIN'] !== null ? autolinker.link(feature.properties['ADMIN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3'] !== null ? autolinker.link(feature.properties['ADM0_A3'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['GEOU_DIF'] !== null ? autolinker.link(feature.properties['GEOU_DIF'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['GEOUNIT'] !== null ? autolinker.link(feature.properties['GEOUNIT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['GU_A3'] !== null ? autolinker.link(feature.properties['GU_A3'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SU_DIF'] !== null ? autolinker.link(feature.properties['SU_DIF'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SUBUNIT'] !== null ? autolinker.link(feature.properties['SUBUNIT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SU_A3'] !== null ? autolinker.link(feature.properties['SU_A3'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['BRK_DIFF'] !== null ? autolinker.link(feature.properties['BRK_DIFF'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME'] !== null ? autolinker.link(feature.properties['NAME'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_LONG'] !== null ? autolinker.link(feature.properties['NAME_LONG'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['BRK_A3'] !== null ? autolinker.link(feature.properties['BRK_A3'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['BRK_NAME'] !== null ? autolinker.link(feature.properties['BRK_NAME'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['BRK_GROUP'] !== null ? autolinker.link(feature.properties['BRK_GROUP'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ABBREV'] !== null ? autolinker.link(feature.properties['ABBREV'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['POSTAL'] !== null ? autolinker.link(feature.properties['POSTAL'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['FORMAL_EN'] !== null ? autolinker.link(feature.properties['FORMAL_EN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['FORMAL_FR'] !== null ? autolinker.link(feature.properties['FORMAL_FR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_CIAWF'] !== null ? autolinker.link(feature.properties['NAME_CIAWF'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NOTE_ADM0'] !== null ? autolinker.link(feature.properties['NOTE_ADM0'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NOTE_BRK'] !== null ? autolinker.link(feature.properties['NOTE_BRK'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_SORT'] !== null ? autolinker.link(feature.properties['NAME_SORT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_ALT'] !== null ? autolinker.link(feature.properties['NAME_ALT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['MAPCOLOR7'] !== null ? autolinker.link(feature.properties['MAPCOLOR7'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['MAPCOLOR8'] !== null ? autolinker.link(feature.properties['MAPCOLOR8'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['MAPCOLOR9'] !== null ? autolinker.link(feature.properties['MAPCOLOR9'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['MAPCOLOR13'] !== null ? autolinker.link(feature.properties['MAPCOLOR13'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['POP_EST'] !== null ? autolinker.link(feature.properties['POP_EST'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['POP_RANK'] !== null ? autolinker.link(feature.properties['POP_RANK'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['POP_YEAR'] !== null ? autolinker.link(feature.properties['POP_YEAR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['GDP_MD'] !== null ? autolinker.link(feature.properties['GDP_MD'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['GDP_YEAR'] !== null ? autolinker.link(feature.properties['GDP_YEAR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ECONOMY'] !== null ? autolinker.link(feature.properties['ECONOMY'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['INCOME_GRP'] !== null ? autolinker.link(feature.properties['INCOME_GRP'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['FIPS_10'] !== null ? autolinker.link(feature.properties['FIPS_10'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ISO_A2'] !== null ? autolinker.link(feature.properties['ISO_A2'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ISO_A2_EH'] !== null ? autolinker.link(feature.properties['ISO_A2_EH'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ISO_A3'] !== null ? autolinker.link(feature.properties['ISO_A3'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ISO_A3_EH'] !== null ? autolinker.link(feature.properties['ISO_A3_EH'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ISO_N3'] !== null ? autolinker.link(feature.properties['ISO_N3'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ISO_N3_EH'] !== null ? autolinker.link(feature.properties['ISO_N3_EH'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['UN_A3'] !== null ? autolinker.link(feature.properties['UN_A3'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WB_A2'] !== null ? autolinker.link(feature.properties['WB_A2'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WB_A3'] !== null ? autolinker.link(feature.properties['WB_A3'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WOE_ID'] !== null ? autolinker.link(feature.properties['WOE_ID'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WOE_ID_EH'] !== null ? autolinker.link(feature.properties['WOE_ID_EH'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WOE_NOTE'] !== null ? autolinker.link(feature.properties['WOE_NOTE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_ISO'] !== null ? autolinker.link(feature.properties['ADM0_ISO'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_DIFF'] !== null ? autolinker.link(feature.properties['ADM0_DIFF'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_TLC'] !== null ? autolinker.link(feature.properties['ADM0_TLC'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_US'] !== null ? autolinker.link(feature.properties['ADM0_A3_US'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_FR'] !== null ? autolinker.link(feature.properties['ADM0_A3_FR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_RU'] !== null ? autolinker.link(feature.properties['ADM0_A3_RU'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_ES'] !== null ? autolinker.link(feature.properties['ADM0_A3_ES'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_CN'] !== null ? autolinker.link(feature.properties['ADM0_A3_CN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_TW'] !== null ? autolinker.link(feature.properties['ADM0_A3_TW'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_IN'] !== null ? autolinker.link(feature.properties['ADM0_A3_IN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_NP'] !== null ? autolinker.link(feature.properties['ADM0_A3_NP'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_PK'] !== null ? autolinker.link(feature.properties['ADM0_A3_PK'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_DE'] !== null ? autolinker.link(feature.properties['ADM0_A3_DE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_GB'] !== null ? autolinker.link(feature.properties['ADM0_A3_GB'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_BR'] !== null ? autolinker.link(feature.properties['ADM0_A3_BR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_IL'] !== null ? autolinker.link(feature.properties['ADM0_A3_IL'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_PS'] !== null ? autolinker.link(feature.properties['ADM0_A3_PS'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_SA'] !== null ? autolinker.link(feature.properties['ADM0_A3_SA'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_EG'] !== null ? autolinker.link(feature.properties['ADM0_A3_EG'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_MA'] !== null ? autolinker.link(feature.properties['ADM0_A3_MA'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_PT'] !== null ? autolinker.link(feature.properties['ADM0_A3_PT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_AR'] !== null ? autolinker.link(feature.properties['ADM0_A3_AR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_JP'] !== null ? autolinker.link(feature.properties['ADM0_A3_JP'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_KO'] !== null ? autolinker.link(feature.properties['ADM0_A3_KO'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_VN'] !== null ? autolinker.link(feature.properties['ADM0_A3_VN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_TR'] !== null ? autolinker.link(feature.properties['ADM0_A3_TR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_ID'] !== null ? autolinker.link(feature.properties['ADM0_A3_ID'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_PL'] !== null ? autolinker.link(feature.properties['ADM0_A3_PL'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_GR'] !== null ? autolinker.link(feature.properties['ADM0_A3_GR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_IT'] !== null ? autolinker.link(feature.properties['ADM0_A3_IT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_NL'] !== null ? autolinker.link(feature.properties['ADM0_A3_NL'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_SE'] !== null ? autolinker.link(feature.properties['ADM0_A3_SE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_BD'] !== null ? autolinker.link(feature.properties['ADM0_A3_BD'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_UA'] !== null ? autolinker.link(feature.properties['ADM0_A3_UA'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_UN'] !== null ? autolinker.link(feature.properties['ADM0_A3_UN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ADM0_A3_WB'] !== null ? autolinker.link(feature.properties['ADM0_A3_WB'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['CONTINENT'] !== null ? autolinker.link(feature.properties['CONTINENT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['REGION_UN'] !== null ? autolinker.link(feature.properties['REGION_UN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SUBREGION'] !== null ? autolinker.link(feature.properties['SUBREGION'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['REGION_WB'] !== null ? autolinker.link(feature.properties['REGION_WB'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_LEN'] !== null ? autolinker.link(feature.properties['NAME_LEN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LONG_LEN'] !== null ? autolinker.link(feature.properties['LONG_LEN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ABBREV_LEN'] !== null ? autolinker.link(feature.properties['ABBREV_LEN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TINY'] !== null ? autolinker.link(feature.properties['TINY'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['HOMEPART'] !== null ? autolinker.link(feature.properties['HOMEPART'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['MIN_ZOOM'] !== null ? autolinker.link(feature.properties['MIN_ZOOM'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['MIN_LABEL'] !== null ? autolinker.link(feature.properties['MIN_LABEL'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['MAX_LABEL'] !== null ? autolinker.link(feature.properties['MAX_LABEL'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LABEL_X'] !== null ? autolinker.link(feature.properties['LABEL_X'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LABEL_Y'] !== null ? autolinker.link(feature.properties['LABEL_Y'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NE_ID'] !== null ? autolinker.link(feature.properties['NE_ID'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIKIDATAID'] !== null ? autolinker.link(feature.properties['WIKIDATAID'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_AR'] !== null ? autolinker.link(feature.properties['NAME_AR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_BN'] !== null ? autolinker.link(feature.properties['NAME_BN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_DE'] !== null ? autolinker.link(feature.properties['NAME_DE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_EN'] !== null ? autolinker.link(feature.properties['NAME_EN'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_ES'] !== null ? autolinker.link(feature.properties['NAME_ES'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_FA'] !== null ? autolinker.link(feature.properties['NAME_FA'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_FR'] !== null ? autolinker.link(feature.properties['NAME_FR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_EL'] !== null ? autolinker.link(feature.properties['NAME_EL'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_HE'] !== null ? autolinker.link(feature.properties['NAME_HE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_HI'] !== null ? autolinker.link(feature.properties['NAME_HI'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_HU'] !== null ? autolinker.link(feature.properties['NAME_HU'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_ID'] !== null ? autolinker.link(feature.properties['NAME_ID'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_IT'] !== null ? autolinker.link(feature.properties['NAME_IT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_JA'] !== null ? autolinker.link(feature.properties['NAME_JA'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME_KO'] !== null ? autolinker.link(feature.properties['NAME_KO'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['FCLASS_IL'] !== null ? autolinker.link(feature.properties['FCLASS_IL'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_AfricaCntry_1_0() {
+            return {
+                pane: 'pane_AfricaCntry_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(133,182,111,0.0)',
+                interactive: false,
+            }
+        }
+        map.createPane('pane_AfricaCntry_1');
+        map.getPane('pane_AfricaCntry_1').style.zIndex = 401;
+        map.getPane('pane_AfricaCntry_1').style['mix-blend-mode'] = 'normal';
+        var layer_AfricaCntry_1 = new L.geoJson(json_AfricaCntry_1, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_AfricaCntry_1',
+            layerName: 'layer_AfricaCntry_1',
+            pane: 'pane_AfricaCntry_1',
+            onEachFeature: pop_AfricaCntry_1,
+            style: style_AfricaCntry_1_0,
+        });
+        bounds_group.addLayer(layer_AfricaCntry_1);
+        map.addLayer(layer_AfricaCntry_1);
+        function pop_africa_nileBasin_2(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">SOVEREIGNT</th>\
+                        <td class="visible-with-data" id="SOVEREIGNT">' + (feature.properties['SOVEREIGNT'] !== null ? autolinker.link(feature.properties['SOVEREIGNT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="TLC"colspan="2"><strong>TLC</strong><br />' + (feature.properties['TLC'] !== null ? autolinker.link(feature.properties['TLC'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">ADM0_A3</th>\
+                        <td>' + (feature.properties['ADM0_A3'] !== null ? autolinker.link(feature.properties['ADM0_A3'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2"><strong>GEOU_DIF</strong><br />' + (feature.properties['GEOU_DIF'] !== null ? autolinker.link(feature.properties['GEOU_DIF'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAME'] !== null ? autolinker.link(feature.properties['NAME'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ABBREV'] !== null ? autolinker.link(feature.properties['ABBREV'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="MAPCOLOR7"colspan="2"><strong>MAPCOLOR7</strong><br />' + (feature.properties['MAPCOLOR7'] !== null ? autolinker.link(feature.properties['MAPCOLOR7'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">POP_EST</th>\
+                        <td class="visible-with-data" id="POP_EST">' + (feature.properties['POP_EST'] !== null ? autolinker.link(feature.properties['POP_EST'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">POP_YEAR</th>\
+                        <td class="visible-with-data" id="POP_YEAR">' + (feature.properties['POP_YEAR'] !== null ? autolinker.link(feature.properties['POP_YEAR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">GDP_YEAR</th>\
+                        <td class="visible-with-data" id="GDP_YEAR">' + (feature.properties['GDP_YEAR'] !== null ? autolinker.link(feature.properties['GDP_YEAR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">ECONOMY</th>\
+                        <td class="visible-with-data" id="ECONOMY">' + (feature.properties['ECONOMY'] !== null ? autolinker.link(feature.properties['ECONOMY'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">INCOME_GRP</th>\
+                        <td class="visible-with-data" id="INCOME_GRP">' + (feature.properties['INCOME_GRP'] !== null ? autolinker.link(feature.properties['INCOME_GRP'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_africa_nileBasin_2_0(feature) {
+            switch(String(feature.properties['SOVEREIGNT'])) {
+                case 'Bir Tawil':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Burundi':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Central African Republic':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Chad':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Democratic Republic of the Congo':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Egypt':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Eritrea':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Ethiopia':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Kenya':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Libya':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Rwanda':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'South Sudan':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Sudan':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'Uganda':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                case 'United Republic of Tanzania':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        function style_africa_nileBasin_2_1(feature) {
+            switch(String(feature.properties['SOVEREIGNT'])) {
+                case 'Bir Tawil':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Burundi':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Central African Republic':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Chad':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Democratic Republic of the Congo':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Egypt':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Eritrea':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Ethiopia':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Kenya':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Libya':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Rwanda':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'South Sudan':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Sudan':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'Uganda':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'United Republic of Tanzania':
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_africa_nileBasin_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_africa_nileBasin_2');
+        map.getPane('pane_africa_nileBasin_2').style.zIndex = 402;
+        map.getPane('pane_africa_nileBasin_2').style['mix-blend-mode'] = 'normal';
+        var layer_africa_nileBasin_2 = new L.geoJson.multiStyle(json_africa_nileBasin_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_africa_nileBasin_2',
+            layerName: 'layer_africa_nileBasin_2',
+            pane: 'pane_africa_nileBasin_2',
+            onEachFeature: pop_africa_nileBasin_2,
+            styles: [style_africa_nileBasin_2_0,style_africa_nileBasin_2_1,]
+        });
+        bounds_group.addLayer(layer_africa_nileBasin_2);
+        map.addLayer(layer_africa_nileBasin_2);
+        var osmGeocoder = new L.Control.Geocoder({
+            collapsed: true,
+            position: 'topleft',
+            text: 'Search',
+            title: 'Testing'
+        }).addTo(map);
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .className += ' fa fa-search';
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .title += 'Search for a place';
+        var overlaysTree = [
+            {label: 'africa_nileBasin<br /><table><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_BirTawil0.png" /></td><td>Bir Tawil</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_Burundi1.png" /></td><td>Burundi</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_CentralAfricanRepublic2.png" /></td><td>Central African Republic</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_Chad3.png" /></td><td>Chad</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_DemocraticRepublicoftheCongo4.png" /></td><td>Democratic Republic of the Congo</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_Egypt5.png" /></td><td>Egypt</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_Eritrea6.png" /></td><td>Eritrea</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_Ethiopia7.png" /></td><td>Ethiopia</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_Kenya8.png" /></td><td>Kenya</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_Libya9.png" /></td><td>Libya</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_Rwanda10.png" /></td><td>Rwanda</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_SouthSudan11.png" /></td><td>South Sudan</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_Sudan12.png" /></td><td>Sudan</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_Uganda13.png" /></td><td>Uganda</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_UnitedRepublicofTanzania14.png" /></td><td>United Republic of Tanzania</td></tr><tr><td style="text-align: center;"><img src="legend/africa_nileBasin_2_15.png" /></td><td></td></tr></table>', layer: layer_africa_nileBasin_2},
+            {label: '<img src="legend/AfricaCntry_1.png" /> AfricaCntry', layer: layer_AfricaCntry_1},
+            {label: "OSM Standard", layer: layer_OSMStandard_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        var i = 0;
+        layer_africa_nileBasin_2.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['ADMIN'] !== null?String('<div style="color: #ffffff; font-size: 10pt; font-style: italic; font-family: \'Liberation Sans\', sans-serif;">' + layer.feature.properties['ADMIN']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_africa_nileBasin_2'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        map.addControl(new L.Control.Search({
+            layer: layer_AfricaCntry_1,
+            initial: false,
+            hideMarkerOnCollapse: true,
+            propertyName: 'SOVEREIGNT'}));
+        document.getElementsByClassName('search-button')[0].className +=
+         ' fa fa-binoculars';
+        resetLabels([layer_africa_nileBasin_2]);
+        map.on("zoomend", function(){
+            resetLabels([layer_africa_nileBasin_2]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_africa_nileBasin_2]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_africa_nileBasin_2]);
+        });
+        </script>
+    </body>
+</html>
